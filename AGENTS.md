@@ -88,10 +88,10 @@ FRONTEND_URL=https://colsus.monokuko.com
 4. **Usuario toca captura** → Se toma foto
 5. **Spinner** → "Analizando imagen..."
 6. **La app habla** → ElevenLabs TTS con el resultado
-7. **Card resultado** → Descripción + objetos detectados + confianza
-8. **Botones** → Confirmar / Reintentar / Hablar (STT)
+7. **Checklist editable** → Pantalla completa con checkbox + cantidad editable por producto
+8. **Botones** → Confirmar / Reintentar / Hablar (STT) + "Agregar producto"
 9. **Si toca Hablar** → Modal de grabación → STT → procesa comando
-10. **Modo Auto** → Captura cada 5 segundos automáticamente
+10. **Modo Auto** → Captura cada 5 segundos. Si detecta productos → para y muestra checklist
 
 ## Responsive Design
 
@@ -208,6 +208,7 @@ fastapi==0.115.0
 uvicorn==0.30.0
 httpx==0.27.0
 python-dotenv==1.0.1
+python-multipart==0.0.9
 ```
 
 ### Frontend (CDN, sin instalación)

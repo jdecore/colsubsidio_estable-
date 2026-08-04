@@ -140,12 +140,13 @@
 
     /* Result card */
     .result-card {
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 20px;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
     }
 
     /* Action buttons */
@@ -212,12 +213,15 @@
     /* Result overlay */
     .result-overlay {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      inset: 0;
       z-index: 50;
       padding: 16px;
+      padding-top: max(16px, env(safe-area-inset-top));
       padding-bottom: max(16px, env(safe-area-inset-bottom));
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
     }
 
     /* Header */
@@ -395,7 +399,7 @@
 
         <p class="text-white/60 text-xs mb-3" id="resultDescription"></p>
 
-        <div id="objectsList" class="space-y-2 mb-3"></div>
+        <div id="objectsList" class="space-y-2 mb-3" style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;"></div>
 
         <button class="add-item-btn" onclick="addItem()">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -542,6 +546,10 @@
         if (!res.ok) throw new Error('Error del servidor');
         const data = await res.json();
         currentResult = data;
+        if (autoMode && data.objects && data.objects.length > 0) {
+          autoMode = false;
+          clearInterval(autoInterval);
+        }
         showResult(data);
         speakResult(data);
       } catch (err) {
