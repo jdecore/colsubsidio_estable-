@@ -682,21 +682,33 @@
     // --- TTS ---
     let speakTimeout = null;
 
-    function speak(text) {
-      // If already speaking, queue this speech by stopping current first
-      if (isSpeaking) {
-        stopSpeaking();
+    function splitTextForTTS(text, maxLen) {
+      if (text.length <= maxLen) return [text];
+      const parts = [];
+      let remaining = text;
+      while (remaining.length > 0) {
+        if (remaining.length <= maxLen) {
+          parts.push(remaining);
+          break;
+        }
+        let cut = remaining.lastIndexOf('. ', maxLen);
+        if (cut <= 0) cut = remaining.lastIndexOf(' ', maxLen);
+        if (cut <= 0) cut = maxLen;
+        else cut += 1;
+        parts.push(remaining.slice(0, cut));
+        remaining = remaining.slice(cut).trim();
       }
-      isSpeaking = true;
-      speakingWaves.style.display = 'flex';
+      return parts;
+    }
 
-      // Safety timeout: force release after 15 seconds
-      clearTimeout(speakTimeout);
-      speakTimeout = setTimeout(() => {
+    function speakChunk(chunks, index) {
+      if (index >= chunks.length) {
         isSpeaking = false;
         speakingWaves.style.display = 'none';
-      }, 15000);
-
+        clearTimeout(speakTimeout);
+        return;
+      }
+      const text = chunks[index];
       fetch(`${API}/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -710,30 +722,72 @@
           const url = URL.createObjectURL(blob);
           audioPlayer.src = url;
           audioPlayer.onended = () => {
-            isSpeaking = false;
-            speakingWaves.style.display = 'none';
-            clearTimeout(speakTimeout);
             URL.revokeObjectURL(url);
+            speakChunk(chunks, index + 1);
           };
           audioPlayer.play();
         })
         .catch(() => {
-          // Fallback to Web Speech API
-          if ('speechSynthesis' in window) {
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'es-CO';
-            u.onend = () => {
-              isSpeaking = false;
-              speakingWaves.style.display = 'none';
-              clearTimeout(speakTimeout);
-            };
-            window.speechSynthesis.speak(u);
-          } else {
-            isSpeaking = false;
-            speakingWaves.style.display = 'none';
-            clearTimeout(speakTimeout);
-          }
+          retrySpeak(chunks, index, 0);
         });
+    }
+
+    function retrySpeak(chunks, index, attempt) {
+      const text = chunks[index];
+      if (attempt >= 2) {
+        fallbackSpeak(text, () => speakChunk(chunks, index + 1));
+        return;
+      }
+      setTimeout(() => {
+        fetch(`${API}/speak`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        })
+          .then(res => {
+            if (!res.ok) throw new Error('retry failed');
+            return res.blob();
+          })
+          .then(blob => {
+            const url = URL.createObjectURL(blob);
+            audioPlayer.src = url;
+            audioPlayer.onended = () => {
+              URL.revokeObjectURL(url);
+              speakChunk(chunks, index + 1);
+            };
+            audioPlayer.play();
+          })
+          .catch(() => retrySpeak(chunks, index, attempt + 1));
+      }, 500);
+    }
+
+    function fallbackSpeak(text, onEnd) {
+      if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'es-CO';
+        u.onend = () => { if (onEnd) onEnd(); };
+        u.onerror = () => { if (onEnd) onEnd(); };
+        window.speechSynthesis.speak(u);
+      } else {
+        if (onEnd) onEnd();
+      }
+    }
+
+    function speak(text) {
+      if (isSpeaking) {
+        stopSpeaking();
+      }
+      isSpeaking = true;
+      speakingWaves.style.display = 'flex';
+
+      clearTimeout(speakTimeout);
+      speakTimeout = setTimeout(() => {
+        isSpeaking = false;
+        speakingWaves.style.display = 'none';
+      }, 30000);
+
+      const chunks = splitTextForTTS(text, 4000);
+      speakChunk(chunks, 0);
     }
 
     function stopSpeaking() {
@@ -768,7 +822,7 @@
           mediaRecorder.onstop = () => {
             s.getTracks().forEach(t => t.stop());
             const elapsed = Date.now() - recordingStartTime;
-            if (elapsed < 300) {
+            if (elapsed < 800) {
               loadingOverlay.style.display = 'none';
               speak('Grabacion muy corta. Manten presionado al menos un segundo.');
               return;
