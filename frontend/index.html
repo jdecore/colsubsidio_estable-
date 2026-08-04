@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Colsubsidio Vision</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -452,11 +451,11 @@
         </div>
         <h3 class="text-white font-bold text-lg mb-2">Inventario Confirmado</h3>
         <p class="text-white/60 text-sm mb-6" id="confirmSummary"></p>
-        <button class="action-btn btn-confirm" onclick="downloadPDF()" style="width:100%">
+        <button class="action-btn btn-confirm" onclick="generateReport()" style="width:100%">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
-          Descargar PDF
+          Descargar informe
         </button>
         <button class="action-btn btn-retry" onclick="resetApp()" style="width:100%; margin-top:8px;">
           Nuevo inventario
@@ -1028,96 +1027,88 @@
       }
     }
 
-    // --- PDF Download ---
-    function downloadPDF() {
+    // --- Report Download ---
+    function generateReport() {
       const btn = document.querySelector('#confirmSuccess .btn-confirm');
       const originalHTML = btn.innerHTML;
-      btn.innerHTML = '<svg class="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.3"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg> Descargando PDF...';
+      btn.innerHTML = '<svg class="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.3"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg> Generando informe...';
       btn.disabled = true;
 
       try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        doc.setFillColor(0, 31, 91);
-        doc.rect(0, 0, 210, 35, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
-        doc.text('COLSUBSIDIO', 15, 18);
-        doc.setFontSize(12);
-        doc.text('Vision - Reporte de Inventario', 15, 28);
-
-        doc.setTextColor(100, 100, 100);
-        doc.setFontSize(10);
         const now = new Date();
-        doc.text(`Fecha: ${now.toLocaleDateString('es-CO')}  Hora: ${now.toLocaleTimeString('es-CO')}`, 15, 45);
-
-        doc.setDrawColor(255, 211, 15);
-        doc.setLineWidth(0.5);
-        doc.line(15, 50, 195, 50);
-
-        let y = 60;
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.text('Producto', 15, y);
-        doc.text('Cantidad', 120, y);
-        y += 10;
-
-        doc.setDrawColor(200, 200, 200);
-        doc.line(15, y, 195, y);
-        y += 8;
-
-        confirmedInventory.forEach((item, i) => {
-          if (i % 2 === 0) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(15, y - 5, 180, 8, 'F');
-          }
-          doc.setFontSize(11);
-          doc.text(item.name, 20, y);
-          doc.text(String(item.quantity), 125, y);
-          y += 8;
-        });
-
-        y += 5;
-        doc.setDrawColor(0, 31, 91);
-        doc.setLineWidth(0.3);
-        doc.line(15, y, 195, y);
-        y += 8;
-        doc.setFontSize(12);
-        doc.text(`Total items: ${confirmedInventory.length}`, 15, y);
+        const fecha = now.toLocaleDateString('es-CO');
+        const hora = now.toLocaleTimeString('es-CO');
         const totalQty = confirmedInventory.reduce((sum, i) => sum + i.quantity, 0);
-        doc.text(`Unidades totales: ${totalQty}`, 120, y);
+        const rows = confirmedInventory.map((item, i) => `
+          <tr style="background:${i % 2 === 0 ? '#f5f5f5' : '#fff'}">
+            <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #e5e5e5">${item.name}</td>
+            <td style="padding:10px 16px;font-size:14px;border-bottom:1px solid #e5e5e5;text-align:center;font-weight:600">${item.quantity}</td>
+          </tr>`).join('');
 
-        y += 30;
-        doc.setDrawColor(150, 150, 150);
-        doc.line(15, y, 80, y);
-        doc.line(120, y, 195, y);
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.text('Firma del responsable', 15, y + 5);
-        doc.text('Vo.Bo.', 120, y + 5);
+        const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Colsubsidio Vision - Informe de Inventario</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter','Segoe UI',system-ui,sans-serif; background:#f5f5f5; padding:20px; }
+  .container { max-width:600px; margin:0 auto; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.1); }
+  .header { background:#001F5B; padding:24px 32px; }
+  .header h1 { color:#fff; font-size:22px; font-weight:700; }
+  .header p { color:#FFD30F; font-size:13px; margin-top:4px; }
+  .meta { padding:16px 32px; border-bottom:2px solid #FFD30F; color:#666; font-size:13px; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; padding:12px 16px; font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px; border-bottom:2px solid #eee; }
+  th:last-child { text-align:center; }
+  .total { padding:16px 32px; border-top:2px solid #001F5B; display:flex; justify-content:space-between; font-size:14px; font-weight:600; color:#001F5B; }
+  .footer { padding:16px 32px; text-align:center; color:#999; font-size:11px; border-top:1px solid #eee; }
+  .firma { display:flex; justify-content:space-between; padding:32px; }
+  .firma-line { border-top:1px solid #ccc; width:40%; padding-top:8px; text-align:center; font-size:11px; color:#999; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>COLSUBSIDIO</h1>
+    <p>Vision - Reporte de Inventario</p>
+  </div>
+  <div class="meta">Fecha: ${fecha} &nbsp;|&nbsp; Hora: ${hora}</div>
+  <table>
+    <thead><tr><th>Producto</th><th>Cantidad</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="total">
+    <span>Total items: ${confirmedInventory.length}</span>
+    <span>Unidades totales: ${totalQty}</span>
+  </div>
+  <div class="firma">
+    <div class="firma-line">Firma del responsable</div>
+    <div class="firma-line">Vo.Bo.</div>
+  </div>
+  <div class="footer">Generado por Colsubsidio Vision</div>
+</div>
+</body>
+</html>`;
 
-        doc.setFontSize(8);
-        doc.text('Generado por Colsubsidio Vision', 15, 285);
-
-        const blob = doc.output('blob');
+        const blob = new Blob([html], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `inventario_${now.toISOString().slice(0,10)}.pdf`;
+        a.download = `inventario_${now.toISOString().slice(0,10)}.html`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-        btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> PDF Descargado';
+        btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> Informe descargado';
         setTimeout(() => {
           btn.innerHTML = originalHTML;
           btn.disabled = false;
         }, 2000);
       } catch (err) {
-        console.error('PDF error:', err);
-        btn.innerHTML = 'Error al descargar. Intenta de nuevo';
+        console.error('Report error:', err);
+        btn.innerHTML = 'Error al generar. Intenta de nuevo';
         setTimeout(() => {
           btn.innerHTML = originalHTML;
           btn.disabled = false;
