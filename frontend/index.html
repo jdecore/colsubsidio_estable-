@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Colsubsidio Vision</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0f172a;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Desktop: phone frame */
+    @media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+      .app-frame {
+        width: 390px;
+        height: min(844px, 92dvh);
+        border-radius: 40px;
+        box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 0 8px #1e293b;
+        margin: auto;
+        position: relative;
+      }
+    }
+
+    /* Mobile: full screen */
+    @media (hover: none) and (pointer: coarse) {
+      .app-frame {
+        width: 100vw;
+        height: 100dvh;
+        height: -webkit-fill-available;
+        border-radius: 0;
+      }
+    }
+
+    /* Fallback: full screen */
+    .app-frame {
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #canvas { display: none; }
+
+    /* Capture button */
+    .capture-btn {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0067b1, #1a8ad4);
+      border: 4px solid rgba(255,255,255,0.9);
+      box-shadow: 0 4px 20px rgba(0,103,177,0.5);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .capture-btn:active { transform: scale(0.9); }
+    .capture-btn::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Mic button */
+    .mic-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #e63946, #ff6b6b);
+      border: 3px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 16px rgba(230,57,70,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn:active { transform: scale(0.9); }
+    .mic-btn.recording {
+      animation: pulse-mic 1s ease-in-out infinite;
+      background: linear-gradient(135deg, #ff0000, #ff4444);
+    }
+
+    @keyframes pulse-mic {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,0,0,0.6); }
+      50% { box-shadow: 0 0 0 16px rgba(255,0,0,0); }
+    }
+
+    /* Waves animation for speaking */
+    .speaking-waves {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 24px;
+    }
+    .speaking-waves .bar {
+      width: 3px;
+      background: #22c55e;
+      border-radius: 2px;
+      animation: wave 0.6s ease-in-out infinite;
+    }
+    .speaking-waves .bar:nth-child(2) { animation-delay: 0.1s; }
+    .speaking-waves .bar:nth-child(3) { animation-delay: 0.2s; }
+    .speaking-waves .bar:nth-child(4) { animation-delay: 0.3s; }
+
+    @keyframes wave {
+      0%, 100% { height: 4px; }
+      50% { height: 18px; }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Result card */
+    .result-card {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 20px;
+    }
+
+    /* Action buttons */
+    .action-btn {
+      padding: 12px 20px;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+    .action-btn:active { transform: scale(0.95); }
+
+    .btn-confirm {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      flex: 1;
+    }
+    .btn-retry {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      flex: 1;
+    }
+    .btn-voice {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+      flex: 1;
+    }
+
+    /* Preview overlay */
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-overlay img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    /* Result overlay */
+    .result-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      padding: 16px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+
+    /* Header */
+    .app-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Status indicator */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.active { background: #22c55e; }
+    .status-dot.inactive { background: #ef4444; }
+
+    /* Bottom controls */
+    .bottom-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      padding: 20px;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-frame" id="app">
+    <!-- Video feed -->
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+
+    <!-- Header -->
+    <div class="app-header">
+      <div class="flex items-center gap-2">
+        <span class="text-white font-bold text-lg tracking-tight">Colsubsidio</span>
+        <span class="text-blue-400 font-semibold text-lg">Vision</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="speaking-waves" id="speakingWaves" style="display:none">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <span class="status-dot active" id="statusDot"></span>
+        <span class="text-white/70 text-xs" id="statusText">Activa</span>
+      </div>
+    </div>
+
+    <!-- Preview overlay -->
+    <div class="preview-overlay" id="previewOverlay" style="display:none">
+      <img id="previewImg" src="" alt="Preview" />
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display:none">
+      <div class="spinner"></div>
+      <p class="text-white font-medium" id="loadingText">Analizando imagen...</p>
+      <div class="speaking-waves">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+    </div>
+
+    <!-- Result overlay -->
+    <div class="result-overlay" id="resultOverlay" style="display:none">
+      <div class="result-card">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-white font-bold text-base">Resultado del Analisis</h3>
+          <span class="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-300" id="providerBadge">IA</span>
+        </div>
+
+        <p class="text-white/80 text-sm mb-4" id="resultDescription"></p>
+
+        <div id="objectsList" class="space-y-2 mb-4"></div>
+
+        <div class="flex gap-2">
+          <button class="action-btn btn-confirm" onclick="confirmAction()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            Confirmar
+          </button>
+          <button class="action-btn btn-retry" onclick="retryAction()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 4v5h5M20 20v-5h-5"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 0 1 3.51 15"/></svg>
+            Reintentar
+          </button>
+          <button class="action-btn btn-voice" onclick="startVoiceConfirmation()">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+            Hablar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recording indicator -->
+    <div id="recordingIndicator" style="display:none"
+         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+                bg-red-500/90 text-white px-6 py-3 rounded-full font-bold text-sm
+                flex items-center gap-2">
+      <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+      Grabando... suelta para enviar
+    </div>
+
+    <!-- Bottom controls -->
+    <div class="bottom-controls">
+      <button class="mic-btn" id="micBtn" onmousedown="startRecording()" onmouseup="stopRecording()"
+              ontouchstart="startRecording()" ontouchend="stopRecording()">
+        <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="white" stroke-width="2"/>
+          <line x1="12" y1="19" x2="12" y2="23" stroke="white" stroke-width="2"/>
+          <line x1="8" y1="23" x2="16" y2="23" stroke="white" stroke-width="2"/>
+        </svg>
+      </button>
+
+      <button class="capture-btn" id="captureBtn" onclick="captureImage()"></button>
+
+      <button class="action-btn btn-retry" style="padding:10px 16px; font-size:12px;" onclick="autoAnalyze()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Auto
+      </button>
+    </div>
+  </div>
+
+  <!-- Hidden audio element -->
+  <audio id="audioPlayer" style="display:none"></audio>
+
+  <script>
+    const API = window.location.origin;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const previewOverlay = document.getElementById('previewOverlay');
+    const previewImg = document.getElementById('previewImg');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+    const resultOverlay = document.getElementById('resultOverlay');
+    const resultDescription = document.getElementById('resultDescription');
+    const providerBadge = document.getElementById('providerBadge');
+    const objectsList = document.getElementById('objectsList');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const speakingWaves = document.getElementById('speakingWaves');
+    const micBtn = document.getElementById('micBtn');
+    const recordingIndicator = document.getElementById('recordingIndicator');
+    const audioPlayer = document.getElementById('audioPlayer');
+
+    let stream = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let currentResult = null;
+    let isSpeaking = false;
+    let autoMode = false;
+    let autoInterval = null;
+
+    // --- Camera ---
+    async function initCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+        video.srcObject = stream;
+        await video.play();
+        setStatus(true, 'Activa');
+      } catch (err) {
+        console.error('Camera error:', err);
+        setStatus(false, 'Sin camara');
+        speak('No se pudo acceder a la camara. Permite los permisos.');
+      }
+    }
+
+    function setStatus(active, text) {
+      statusDot.className = 'status-dot ' + (active ? 'active' : 'inactive');
+      statusText.textContent = text;
+    }
+
+    // --- Capture ---
+    function captureImage() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      previewImg.src = dataUrl;
+      previewOverlay.style.display = 'flex';
+      analyzeImage(dataUrl.split(',')[1]);
+    }
+
+    // --- Auto analyze ---
+    function autoAnalyze() {
+      autoMode = !autoMode;
+      if (autoMode) {
+        speak('Modo automatico activado. Analizare cada 5 segundos.');
+        autoInterval = setInterval(captureImage, 5000);
+      } else {
+        speak('Modo automatico desactivado.');
+        clearInterval(autoInterval);
+      }
+    }
+
+    // --- Analyze ---
+    async function analyzeImage(base64) {
+      previewOverlay.style.display = 'none';
+      loadingOverlay.style.display = 'flex';
+      loadingText.textContent = 'Analizando imagen...';
+      speak('Analizando imagen, por favor espera.');
+
+      try {
+        const res = await fetch(`${API}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 }),
+        });
+        if (!res.ok) throw new Error('Error del servidor');
+        const data = await res.json();
+        currentResult = data;
+        showResult(data);
+        speakResult(data);
+      } catch (err) {
+        console.error(err);
+        loadingOverlay.style.display = 'none';
+        speak('Hubo un error al analizar la imagen. Intenta de nuevo.');
+      }
+    }
+
+    function showResult(data) {
+      loadingOverlay.style.display = 'none';
+      resultOverlay.style.display = 'block';
+
+      const provider = data._provider || 'ia';
+      providerBadge.textContent = provider.toUpperCase();
+
+      resultDescription.textContent = data.description || 'Sin descripcion disponible.';
+
+      objectsList.innerHTML = '';
+      if (data.objects && data.objects.length > 0) {
+        data.objects.forEach(obj => {
+          const div = document.createElement('div');
+          div.className = 'bg-white/5 rounded-xl p-3 flex items-center justify-between';
+          div.innerHTML = `
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <svg width="20" height="20" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              </div>
+              <div>
+                <p class="text-white font-medium text-sm">${obj.name}</p>
+                <p class="text-white/50 text-xs">Cantidad: ${obj.quantity || 'N/A'}</p>
+              </div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full ${obj.confidence > 0.8 ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}">
+              ${Math.round((obj.confidence || 0) * 100)}%
+            </span>
+          `;
+          objectsList.appendChild(div);
+        });
+      } else {
+        objectsList.innerHTML = '<p class="text-white/40 text-sm text-center py-2">No se detectaron productos</p>';
+      }
+    }
+
+    function speakResult(data) {
+      let text = '';
+      if (data.description) {
+        text += data.description + '. ';
+      }
+      if (data.objects && data.objects.length > 0) {
+        text += 'Encontre ' + data.objects.length + ' elemento' + (data.objects.length > 1 ? 's' : '') + '. ';
+        data.objects.forEach(obj => {
+          text += obj.name + ', cantidad ' + (obj.quantity || 'desconocida') + '. ';
+        });
+      }
+      if (data.suggestion) {
+        text += data.suggestion;
+      }
+      if (!text) text = 'No pude analizar la imagen correctamente.';
+      speak(text);
+    }
+
+    // --- TTS ---
+    function speak(text) {
+      if (isSpeaking) return;
+      isSpeaking = true;
+      speakingWaves.style.display = 'flex';
+
+      fetch(`${API}/speak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('TTS failed');
+          return res.blob();
+        })
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          audioPlayer.src = url;
+          audioPlayer.onended = () => {
+            isSpeaking = false;
+            speakingWaves.style.display = 'none';
+            URL.revokeObjectURL(url);
+          };
+          audioPlayer.play();
+        })
+        .catch(() => {
+          // Fallback to Web Speech API
+          if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'es-CO';
+            u.onend = () => {
+              isSpeaking = false;
+              speakingWaves.style.display = 'none';
+            };
+            window.speechSynthesis.speak(u);
+          } else {
+            isSpeaking = false;
+            speakingWaves.style.display = 'none';
+          }
+        });
+    }
+
+    // --- STT ---
+    function startRecording() {
+      if (isRecording) return;
+      audioChunks = [];
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(s => {
+          mediaRecorder = new MediaRecorder(s);
+          mediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+          mediaRecorder.onstop = () => {
+            s.getTracks().forEach(t => t.stop());
+            if (audioChunks.length > 0) {
+              const blob = new Blob(audioChunks, { type: 'audio/webm' });
+              sendAudio(blob);
+            }
+          };
+          mediaRecorder.start();
+          isRecording = true;
+          micBtn.classList.add('recording');
+          recordingIndicator.style.display = 'flex';
+        })
+        .catch(() => {
+          speak('Necesitas dar permisos de microfono.');
+        });
+    }
+
+    function stopRecording() {
+      if (!isRecording || !mediaRecorder) return;
+      mediaRecorder.stop();
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      recordingIndicator.style.display = 'none';
+    }
+
+    async function sendAudio(blob) {
+      loadingOverlay.style.display = 'flex';
+      loadingText.textContent = 'Escuchando...';
+      speak('Procesando tu voz.');
+
+      const formData = new FormData();
+      formData.append('file', blob, 'recording.webm');
+
+      try {
+        const res = await fetch(`${API}/transcribe`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) throw new Error('STT failed');
+        const data = await res.json();
+        processVoiceCommand(data.text);
+      } catch (err) {
+        loadingOverlay.style.display = 'none';
+        speak('No pude entender el audio. Intenta de nuevo.');
+      }
+    }
+
+    function processVoiceCommand(text) {
+      loadingOverlay.style.display = 'none';
+      const lower = text.toLowerCase();
+
+      if (lower.includes('confirmar') || lower.includes('confirmo') || lower.includes('acepto')) {
+        speak('Perfecto, confirmado. Procesando.');
+        resultOverlay.style.display = 'none';
+      } else if (lower.includes('reintentar') || lower.includes('otra vez') || lower.includes('de nuevo')) {
+        speak('Tomando nueva foto.');
+        resultOverlay.style.display = 'none';
+        setTimeout(captureImage, 1000);
+      } else if (lower.includes('descripcion') || lower.includes('que ves') || lower.includes('explica')) {
+        if (currentResult) speakResult(currentResult);
+      } else {
+        speak('Escuche: ' + text + '. Puedes confirmar, reintentar o pedir la descripcion.');
+      }
+    }
+
+    // --- Actions ---
+    function confirmAction() {
+      speak('Confirmado. Imagen procesada correctamente.');
+      resultOverlay.style.display = 'none';
+      previewOverlay.style.display = 'none';
+    }
+
+    function retryAction() {
+      speak('Tomando nueva foto.');
+      resultOverlay.style.display = 'none';
+      previewOverlay.style.display = 'none';
+      setTimeout(captureImage, 500);
+    }
+
+    function startVoiceConfirmation() {
+      speak('Di confirmar, reintentar o descripcion.');
+      startRecording();
+    }
+
+    // --- Init ---
+    initCamera();
+  </script>
+</body>
+</html>
