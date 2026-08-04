@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Colsubsidio Vision</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -344,6 +345,15 @@
       color: white;
     }
 
+    /* Confirm success */
+    #confirmSuccess {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+      text-align: center;
+    }
+
     /* Bottom controls */
     .bottom-controls {
       position: absolute;
@@ -427,6 +437,26 @@
             Hablar
           </button>
         </div>
+      </div>
+
+      <!-- Confirm success (hidden by default) -->
+      <div id="confirmSuccess" style="display:none">
+        <div class="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4">
+          <svg width="32" height="32" fill="none" stroke="#FFD30F" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h3 class="text-white font-bold text-lg mb-2">Inventario Confirmado</h3>
+        <p class="text-white/60 text-sm mb-6" id="confirmSummary"></p>
+        <button class="action-btn btn-confirm" onclick="downloadPDF()" style="width:100%">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Descargar PDF
+        </button>
+        <button class="action-btn btn-retry" onclick="resetApp()" style="width:100%; margin-top:8px;">
+          Nuevo inventario
+        </button>
       </div>
     </div>
 
@@ -813,11 +843,21 @@
         return;
       }
       confirmedInventory = items;
-      let msg = 'Inventario confirmado: ';
-      msg += items.map(i => i.quantity + ' ' + i.name).join(', ');
-      speak(msg);
-      resultOverlay.style.display = 'none';
-      previewOverlay.style.display = 'none';
+      
+      // Ocultar checklist, mostrar éxito
+      document.querySelector('.result-card > div:first-child').style.display = 'none';
+      document.getElementById('resultDescription').style.display = 'none';
+      document.getElementById('objectsList').style.display = 'none';
+      document.querySelector('.add-item-btn').style.display = 'none';
+      document.querySelector('.flex.gap-2.mt-3').style.display = 'none';
+      
+      const confirmDiv = document.getElementById('confirmSuccess');
+      confirmDiv.style.display = 'flex';
+      
+      const summary = items.map(i => `${i.quantity} ${i.name}`).join(', ');
+      document.getElementById('confirmSummary').textContent = summary;
+      
+      speak('Inventario confirmado. Puedes descargar el PDF.');
       console.log('Inventario guardado:', confirmedInventory);
     }
 
@@ -829,12 +869,106 @@
     }
 
     function startVoiceConfirmation() {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel();
+        isSpeaking = false;
+        speakingWaves.style.display = 'none';
+      }
       if (isRecording) {
         stopRecording();
       } else {
-        speak('Di los productos que faltan.');
         startRecording();
       }
+    }
+
+    // --- PDF Download ---
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      // Header azul Colsubsidio
+      doc.setFillColor(0, 31, 91);
+      doc.rect(0, 0, 210, 35, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text('COLSUBSIDIO', 15, 18);
+      doc.setFontSize(12);
+      doc.text('Vision - Reporte de Inventario', 15, 28);
+      
+      // Fecha y hora
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(10);
+      const now = new Date();
+      doc.text(`Fecha: ${now.toLocaleDateString('es-CO')}  Hora: ${now.toLocaleTimeString('es-CO')}`, 15, 45);
+      
+      // Linea separadora amarilla
+      doc.setDrawColor(255, 211, 15);
+      doc.setLineWidth(0.5);
+      doc.line(15, 50, 195, 50);
+      
+      // Tabla
+      let y = 60;
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.text('Producto', 15, y);
+      doc.text('Cantidad', 120, y);
+      y += 10;
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, y, 195, y);
+      y += 8;
+      
+      confirmedInventory.forEach((item, i) => {
+        if (i % 2 === 0) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(15, y - 5, 180, 8, 'F');
+        }
+        doc.setFontSize(11);
+        doc.text(item.name, 20, y);
+        doc.text(String(item.quantity), 125, y);
+        y += 8;
+      });
+      
+      // Total
+      y += 5;
+      doc.setDrawColor(0, 31, 91);
+      doc.setLineWidth(0.3);
+      doc.line(15, y, 195, y);
+      y += 8;
+      doc.setFontSize(12);
+      doc.text(`Total items: ${confirmedInventory.length}`, 15, y);
+      const totalQty = confirmedInventory.reduce((sum, i) => sum + i.quantity, 0);
+      doc.text(`Unidades totales: ${totalQty}`, 120, y);
+      
+      // Firma
+      y += 30;
+      doc.setDrawColor(150, 150, 150);
+      doc.line(15, y, 80, y);
+      doc.line(120, y, 195, y);
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Firma del responsable', 15, y + 5);
+      doc.text('Vo.Bo.', 120, y + 5);
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.text('Generado por Colsubsidio Vision', 15, 285);
+      
+      doc.save(`inventario_${now.toISOString().slice(0,10)}.pdf`);
+    }
+
+    // --- Reset App ---
+    function resetApp() {
+      confirmedInventory = [];
+      resultOverlay.style.display = 'none';
+      previewOverlay.style.display = 'none';
+      document.querySelector('.result-card > div:first-child').style.display = 'flex';
+      document.getElementById('resultDescription').style.display = 'block';
+      document.getElementById('objectsList').style.display = 'block';
+      document.querySelector('.add-item-btn').style.display = 'flex';
+      document.querySelector('.flex.gap-2.mt-3').style.display = 'flex';
+      document.getElementById('confirmSuccess').style.display = 'none';
+      objectsList.innerHTML = '';
     }
 
     // --- Init ---
