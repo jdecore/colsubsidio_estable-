@@ -372,6 +372,90 @@
       justify-content: center;
       gap: 24px;
     }
+
+    /* ===== MOBILE OPTIMIZATIONS ===== */
+    @media (max-width: 480px) {
+      /* Bigger action buttons with more spacing */
+      .action-btn {
+        padding: 14px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+        min-height: 48px;
+      }
+      .flex.gap-2.mt-3 {
+        gap: 8px;
+      }
+
+      /* Better checklist items touch targets */
+      .checklist-item {
+        padding: 12px 10px;
+        gap: 8px;
+        min-height: 48px;
+      }
+      .checklist-item input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+      }
+      .checklist-item input[type="number"] {
+        width: 52px;
+        font-size: 16px;
+        padding: 6px 0;
+      }
+      .checklist-item input[type="text"] {
+        font-size: 15px;
+      }
+
+      /* Bigger add item button */
+      .add-item-btn {
+        padding: 14px;
+        font-size: 14px;
+        min-height: 48px;
+      }
+
+      /* Bottom controls spacing */
+      .bottom-controls {
+        gap: 20px;
+        padding: 16px;
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+      }
+      .mic-btn {
+        width: 60px;
+        height: 60px;
+      }
+      .capture-btn {
+        width: 76px;
+        height: 76px;
+      }
+
+      /* Result overlay padding */
+      .result-overlay {
+        padding: 12px;
+        padding-top: max(12px, env(safe-area-inset-top));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+
+      /* Confirm success bigger buttons */
+      #confirmSuccess .action-btn {
+        padding: 16px;
+        font-size: 15px;
+        min-height: 52px;
+      }
+
+      /* Result card header */
+      .result-card h3 {
+        font-size: 16px;
+      }
+    }
+
+    /* Safe area for devices with notch */
+    @supports (padding: env(safe-area-inset-top)) {
+      .app-header {
+        padding-top: env(safe-area-inset-top);
+      }
+      .bottom-controls {
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      }
+    }
   </style>
 </head>
 <body>
