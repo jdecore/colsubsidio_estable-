@@ -4,6 +4,15 @@
 
 App de análisis de imágenes con voz para inventario. La app muestra la cámara en pantalla completa, analiza imágenes con IA (Gemini/OpenRouter), y habla los resultados. El usuario puede confirmar o corregir por voz.
 
+## Paleta de Colores Colsubsidio
+
+| Color | Hex | Uso |
+|---|---|---|
+| Amarillo Colsubsidio | `#FFD30F` | Botones principales, acentos, checkbox, spinner, speaking waves |
+| Azul Colsubsidio | `#001F5B` | Botón captura, botón de voz (Hablar), headers |
+| Grafito (Oscuro) | `#202124` | Fondo general, overlays, cards |
+| Blanco | `#FFFFFF` | Texto principal |
+
 ## Arquitectura
 
 ```
@@ -92,6 +101,18 @@ FRONTEND_URL=https://colsus.monokuko.com
 8. **Botones** → Confirmar / Reintentar / Hablar (STT) + "Agregar producto"
 9. **Si toca Hablar** → Modal de grabación → STT → procesa comando
 10. **Modo Auto** → Captura cada 5 segundos. Si detecta productos → para y muestra checklist
+
+## Flujo de Voz
+
+### Pantalla principal
+- Botón "Hablar" (micrófono amarillo) → click para iniciar grabación
+- Usuario dice inventario: "3 arroz, 2 leche"
+- Se crea checklist directamente sin usar cámara
+
+### En checklist
+- Botón "Hablar" en resultados → agrega items por voz
+- Usuario dice: "faltan 2 fideos" → se agrega al checklist
+- También puede decir "confirmar" o "reintentar"
 
 ## Responsive Design
 
