@@ -350,8 +350,10 @@
       display: none;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       padding: 32px 16px;
       text-align: center;
+      min-height: 100%;
     }
 
     /* Bottom controls */
@@ -1026,78 +1028,99 @@
 
     // --- PDF Download ---
     function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      
-      // Header azul Colsubsidio
-      doc.setFillColor(0, 31, 91);
-      doc.rect(0, 0, 210, 35, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text('COLSUBSIDIO', 15, 18);
-      doc.setFontSize(12);
-      doc.text('Vision - Reporte de Inventario', 15, 28);
-      
-      // Fecha y hora
-      doc.setTextColor(100, 100, 100);
-      doc.setFontSize(10);
-      const now = new Date();
-      doc.text(`Fecha: ${now.toLocaleDateString('es-CO')}  Hora: ${now.toLocaleTimeString('es-CO')}`, 15, 45);
-      
-      // Linea separadora amarilla
-      doc.setDrawColor(255, 211, 15);
-      doc.setLineWidth(0.5);
-      doc.line(15, 50, 195, 50);
-      
-      // Tabla
-      let y = 60;
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(12);
-      doc.text('Producto', 15, y);
-      doc.text('Cantidad', 120, y);
-      y += 10;
-      
-      doc.setDrawColor(200, 200, 200);
-      doc.line(15, y, 195, y);
-      y += 8;
-      
-      confirmedInventory.forEach((item, i) => {
-        if (i % 2 === 0) {
-          doc.setFillColor(245, 245, 245);
-          doc.rect(15, y - 5, 180, 8, 'F');
-        }
-        doc.setFontSize(11);
-        doc.text(item.name, 20, y);
-        doc.text(String(item.quantity), 125, y);
+      const btn = document.querySelector('#confirmSuccess .btn-confirm');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<svg class="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.3"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg> Descargando PDF...';
+      btn.disabled = true;
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFillColor(0, 31, 91);
+        doc.rect(0, 0, 210, 35, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text('COLSUBSIDIO', 15, 18);
+        doc.setFontSize(12);
+        doc.text('Vision - Reporte de Inventario', 15, 28);
+
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(10);
+        const now = new Date();
+        doc.text(`Fecha: ${now.toLocaleDateString('es-CO')}  Hora: ${now.toLocaleTimeString('es-CO')}`, 15, 45);
+
+        doc.setDrawColor(255, 211, 15);
+        doc.setLineWidth(0.5);
+        doc.line(15, 50, 195, 50);
+
+        let y = 60;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.text('Producto', 15, y);
+        doc.text('Cantidad', 120, y);
+        y += 10;
+
+        doc.setDrawColor(200, 200, 200);
+        doc.line(15, y, 195, y);
         y += 8;
-      });
-      
-      // Total
-      y += 5;
-      doc.setDrawColor(0, 31, 91);
-      doc.setLineWidth(0.3);
-      doc.line(15, y, 195, y);
-      y += 8;
-      doc.setFontSize(12);
-      doc.text(`Total items: ${confirmedInventory.length}`, 15, y);
-      const totalQty = confirmedInventory.reduce((sum, i) => sum + i.quantity, 0);
-      doc.text(`Unidades totales: ${totalQty}`, 120, y);
-      
-      // Firma
-      y += 30;
-      doc.setDrawColor(150, 150, 150);
-      doc.line(15, y, 80, y);
-      doc.line(120, y, 195, y);
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text('Firma del responsable', 15, y + 5);
-      doc.text('Vo.Bo.', 120, y + 5);
-      
-      // Footer
-      doc.setFontSize(8);
-      doc.text('Generado por Colsubsidio Vision', 15, 285);
-      
-      doc.save(`inventario_${now.toISOString().slice(0,10)}.pdf`);
+
+        confirmedInventory.forEach((item, i) => {
+          if (i % 2 === 0) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(15, y - 5, 180, 8, 'F');
+          }
+          doc.setFontSize(11);
+          doc.text(item.name, 20, y);
+          doc.text(String(item.quantity), 125, y);
+          y += 8;
+        });
+
+        y += 5;
+        doc.setDrawColor(0, 31, 91);
+        doc.setLineWidth(0.3);
+        doc.line(15, y, 195, y);
+        y += 8;
+        doc.setFontSize(12);
+        doc.text(`Total items: ${confirmedInventory.length}`, 15, y);
+        const totalQty = confirmedInventory.reduce((sum, i) => sum + i.quantity, 0);
+        doc.text(`Unidades totales: ${totalQty}`, 120, y);
+
+        y += 30;
+        doc.setDrawColor(150, 150, 150);
+        doc.line(15, y, 80, y);
+        doc.line(120, y, 195, y);
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Firma del responsable', 15, y + 5);
+        doc.text('Vo.Bo.', 120, y + 5);
+
+        doc.setFontSize(8);
+        doc.text('Generado por Colsubsidio Vision', 15, 285);
+
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inventario_${now.toISOString().slice(0,10)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+        btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg> PDF Descargado';
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        }, 2000);
+      } catch (err) {
+        console.error('PDF error:', err);
+        btn.innerHTML = 'Error al descargar. Intenta de nuevo';
+        setTimeout(() => {
+          btn.innerHTML = originalHTML;
+          btn.disabled = false;
+        }, 2000);
+      }
     }
 
     // --- Reset App ---

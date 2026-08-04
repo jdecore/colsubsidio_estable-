@@ -16,7 +16,7 @@ if _env_path.exists():
     load_dotenv(_env_path)
 
 from ai_engine import analyze_image, health as ai_health
-from voice_engine import sintetizar, transcribir, health as voice_health
+from voice_engine import sintetizar, transcribir, corregir_transcripcion, health as voice_health
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://colsus.monokuko.com")
 
@@ -57,7 +57,8 @@ def health():
         "ok": True,
         "gemini": ai.get("gemini", False),
         "openrouter": ai.get("openrouter", False),
-        "elevenlabs": voice,
+        "elevenlabs": voice.get("elevenlabs", False),
+        "cerebras": voice.get("cerebras", False),
     }
 
 
@@ -83,15 +84,17 @@ async def speak(req: SpeakRequest):
 
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
-    """Speech-to-text using ElevenLabs."""
+    """Speech-to-text using ElevenLabs + Qwen3 correction."""
     import logging
     log = logging.getLogger(__name__)
     try:
         audio = await file.read()
         log.info("Transcribe received: filename=%s, size=%d bytes", file.filename, len(audio))
         texto = await transcribir(audio, file.filename or "audio.webm")
-        log.info("Transcribe result: %r", texto)
-        return {"text": texto}
+        log.info("STT raw: %r", texto)
+        texto_corregido = await corregir_transcripcion(texto)
+        log.info("STT corrected: %r", texto_corregido)
+        return {"text": texto_corregido, "raw": texto}
     except Exception as e:
         log.error("Transcribe error: %s", e)
         raise HTTPException(status_code=502, detail=f"STT error: {e}")

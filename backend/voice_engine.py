@@ -1,4 +1,4 @@
-"""ElevenLabs STT + TTS engine."""
+"""ElevenLabs STT + TTS engine + Qwen3/Cerebras correction."""
 from __future__ import annotations
 
 import logging
@@ -13,8 +13,12 @@ ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMa
 ELEVENLABS_STT_MODEL = os.environ.get("ELEVENLABS_STT_MODEL", "scribe_v2")
 ELEVENLABS_TTS_MODEL = os.environ.get("ELEVENLABS_TTS_MODEL", "eleven_flash_v2_5")
 
+CEREBRAS_API_KEY = os.environ.get("CEREBRAS_API_KEY", "")
+CEREBRAS_MODEL = os.environ.get("CEREBRAS_MODEL", "qwen3-235b-a22b-instruct-250")
+
 _STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 _TTS_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+_CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
 _TIMEOUT = 60
 
 
@@ -91,5 +95,53 @@ async def sintetizar(texto: str) -> bytes:
     return resp.content
 
 
-def health() -> bool:
-    return _has_key()
+async def corregir_transcripcion(texto: str) -> str:
+    """Corrige texto transcrito con Qwen3/Cerebras. Si falla, retorna el original."""
+    if not CEREBRAS_API_KEY:
+        return texto
+
+    prompt = (
+        "Eres un corrector de transcripciones de voz para inventario de supermercado. "
+        "El usuario está hablando productos y cantidades. "
+        "Corrige errores ortográficos, completas palabras cortadas, y normalizas números. "
+        "Res SOLO el texto corregido, sin explicaciones ni comillas.\n\n"
+        f"Transcripción: {texto}"
+    )
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                _CEREBRAS_URL,
+                headers={
+                    "Authorization": f"Bearer {CEREBRAS_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": CEREBRAS_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 200,
+                    "temperature": 0.1,
+                },
+                timeout=15,
+            )
+
+        if resp.status_code == 429:
+            log.warning("Cerebras rate limit, usando texto original: %s", texto)
+            return texto
+
+        resp.raise_for_status()
+        data = resp.json()
+        corrected = data["choices"][0]["message"]["content"].strip().strip('"').strip("'")
+        log.info("Qwen3 correction: %r -> %r", texto, corrected)
+        return corrected if corrected else texto
+
+    except Exception as e:
+        log.warning("Cerebras error (%s), usando texto original: %s", e, texto)
+        return texto
+
+
+def health() -> dict:
+    return {
+        "elevenlabs": _has_key(),
+        "cerebras": bool(CEREBRAS_API_KEY),
+    }
