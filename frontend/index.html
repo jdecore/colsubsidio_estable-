@@ -656,14 +656,20 @@
     }
 
     function speakResult(data) {
+      const numNames = {
+        1:'uno', 2:'dos', 3:'tres', 4:'cuatro', 5:'cinco',
+        6:'seis', 7:'siete', 8:'ocho', 9:'nueve', 10:'diez',
+        11:'once', 12:'doce'
+      };
       let text = '';
       if (data.description) {
         text += data.description + '. ';
       }
       if (data.objects && data.objects.length > 0) {
-        text += 'Encontre ' + data.objects.length + ' elemento' + (data.objects.length > 1 ? 's' : '') + '. ';
+        text += 'Encontré ' + data.objects.length + ' elemento' + (data.objects.length > 1 ? 's' : '') + '. ';
         data.objects.forEach(obj => {
-          text += obj.name + ', cantidad ' + (obj.quantity || 'desconocida') + '. ';
+          const qtyWord = numNames[obj.quantity] || obj.quantity;
+          text += obj.name + ', cantidad ' + qtyWord + '. ';
         });
       }
       if (data.suggestion) {
@@ -905,13 +911,11 @@
         cero:0, uno:1, dos:2, tres:3, cuatro:4, cinco:5,
         seis:6, siete:7, ocho:8, nueve:9, diez:10, once:11, doce:12
       };
-      // Match patterns like "3 arroz", "tres arroz", "2 leches"
-      const regex = /(\d+|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(\w+)/g;
+      const regex = /(\d+|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(?:de\s+|del\s+|la\s+|el\s+|los\s+|las\s+)?(\w+)/g;
       let match;
       while ((match = regex.exec(text)) !== null) {
         let qty = parseInt(match[1]) || numWords[match[1]] || 1;
         let name = match[2];
-        // Clean common suffixes
         name = name.replace(/es$/, '').replace(/s$/, '');
         items.push({ name, quantity: qty });
       }
