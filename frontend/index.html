@@ -244,6 +244,95 @@
     .status-dot.active { background: #22c55e; }
     .status-dot.inactive { background: #ef4444; }
 
+    /* Checklist */
+    .checklist-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.2s;
+    }
+    .checklist-item:active { background: rgba(255,255,255,0.1); }
+    .checklist-item.unchecked { opacity: 0.4; }
+    .checklist-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.3);
+      appearance: none;
+      -webkit-appearance: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+      background: transparent;
+    }
+    .checklist-item input[type="checkbox"]:checked {
+      background: #22c55e;
+      border-color: #22c55e;
+    }
+    .checklist-item input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 6px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    .checklist-item input[type="number"] {
+      width: 48px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: white;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 4px 0;
+      -moz-appearance: textfield;
+    }
+    .checklist-item input[type="number"]::-webkit-inner-spin-button,
+    .checklist-item input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+    }
+    .checklist-item input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      outline: none;
+      min-width: 0;
+    }
+    .checklist-item input[type="text"]::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+    .add-item-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 2px dashed rgba(255,255,255,0.2);
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .add-item-btn:active {
+      border-color: rgba(255,255,255,0.4);
+      color: white;
+    }
+
     /* Bottom controls */
     .bottom-controls {
       position: absolute;
@@ -299,16 +388,21 @@
     <!-- Result overlay -->
     <div class="result-overlay" id="resultOverlay" style="display:none">
       <div class="result-card">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-white font-bold text-base">Resultado del Analisis</h3>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-white font-bold text-base">Inventario</h3>
           <span class="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-300" id="providerBadge">IA</span>
         </div>
 
-        <p class="text-white/80 text-sm mb-4" id="resultDescription"></p>
+        <p class="text-white/60 text-xs mb-3" id="resultDescription"></p>
 
-        <div id="objectsList" class="space-y-2 mb-4"></div>
+        <div id="objectsList" class="space-y-2 mb-3"></div>
 
-        <div class="flex gap-2">
+        <button class="add-item-btn" onclick="addItem()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar producto
+        </button>
+
+        <div class="flex gap-2 mt-3">
           <button class="action-btn btn-confirm" onclick="confirmAction()">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
             Confirmar
@@ -468,28 +562,50 @@
 
       objectsList.innerHTML = '';
       if (data.objects && data.objects.length > 0) {
-        data.objects.forEach(obj => {
-          const div = document.createElement('div');
-          div.className = 'bg-white/5 rounded-xl p-3 flex items-center justify-between';
-          div.innerHTML = `
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <svg width="20" height="20" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-              </div>
-              <div>
-                <p class="text-white font-medium text-sm">${obj.name}</p>
-                <p class="text-white/50 text-xs">Cantidad: ${obj.quantity || 'N/A'}</p>
-              </div>
-            </div>
-            <span class="text-xs px-2 py-1 rounded-full ${obj.confidence > 0.8 ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}">
-              ${Math.round((obj.confidence || 0) * 100)}%
-            </span>
-          `;
-          objectsList.appendChild(div);
+        data.objects.forEach((obj, i) => {
+          addChecklistItem(obj.name, obj.quantity || 1, obj.confidence, i);
         });
-      } else {
-        objectsList.innerHTML = '<p class="text-white/40 text-sm text-center py-2">No se detectaron productos</p>';
       }
+    }
+
+    function addChecklistItem(name, quantity, confidence, index) {
+      const div = document.createElement('div');
+      div.className = 'checklist-item';
+      div.dataset.index = index;
+      div.innerHTML = `
+        <input type="checkbox" checked onchange="toggleItem(this)" />
+        <input type="text" value="${name}" placeholder="Producto" />
+        <input type="number" value="${quantity}" min="1" max="999" />
+        ${confidence != null ? `
+        <span class="text-xs px-2 py-1 rounded-full ${confidence > 0.8 ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}">
+          ${Math.round(confidence * 100)}%
+        </span>` : ''}
+      `;
+      objectsList.appendChild(div);
+    }
+
+    function addItem() {
+      const count = objectsList.children.length;
+      addChecklistItem('', 1, null, count);
+      const lastInput = objectsList.lastElementChild.querySelector('input[type="text"]');
+      if (lastInput) lastInput.focus();
+    }
+
+    function toggleItem(checkbox) {
+      const item = checkbox.closest('.checklist-item');
+      item.classList.toggle('unchecked', !checkbox.checked);
+    }
+
+    function getCheckedItems() {
+      const items = [];
+      objectsList.querySelectorAll('.checklist-item').forEach(item => {
+        const checked = item.querySelector('input[type="checkbox"]').checked;
+        if (!checked) return;
+        const name = item.querySelector('input[type="text"]').value.trim();
+        const quantity = parseInt(item.querySelector('input[type="number"]').value) || 1;
+        if (name) items.push({ name, quantity });
+      });
+      return items;
     }
 
     function speakResult(data) {
@@ -628,10 +744,21 @@
     }
 
     // --- Actions ---
+    let confirmedInventory = [];
+
     function confirmAction() {
-      speak('Confirmado. Imagen procesada correctamente.');
+      const items = getCheckedItems();
+      if (items.length === 0) {
+        speak('No hay productos marcados. Marca al menos uno o agrega productos.');
+        return;
+      }
+      confirmedInventory = items;
+      let msg = 'Inventario confirmado: ';
+      msg += items.map(i => i.quantity + ' ' + i.name).join(', ');
+      speak(msg);
       resultOverlay.style.display = 'none';
       previewOverlay.style.display = 'none';
+      console.log('Inventario guardado:', confirmedInventory);
     }
 
     function retryAction() {

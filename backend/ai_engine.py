@@ -22,20 +22,7 @@ _GEMINI_URL = (
 )
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-_PROMPT = """Eres un sistema de vision artificial para inventario.
-Analiza esta imagen y responde en JSON estricto con esta estructura:
-
-{
-  "description": "descripcion breve de lo que ves en la imagen",
-  "objects": [
-    {"name": "nombre del producto/objeto", "quantity": 1, "confidence": 0.95}
-  ],
-  "confidence": 0.9,
-  "suggestion": "sugerencia o accion recomendada"
-}
-
-Si no es un producto de inventario, description describe que es y objects puede ser [].
-Responde SOLO el JSON, sin texto adicional."""
+_PROMPT = """Inventario: devuelve JSON con {"description":"breve","objects":[{"name":"","quantity":1,"confidence":0.9}],"confidence":0.9,"suggestion":""}. Sin productos: {"description":"...","objects":[],"confidence":0,"suggestion":""}. Solo JSON."""
 
 
 def _analyze_gemini(image_b64: str) -> dict | None:
