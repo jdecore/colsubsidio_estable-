@@ -740,22 +740,38 @@
     }
 
     // --- STT ---
+    let recordingStartTime = 0;
+
     function startRecording() {
       if (isRecording) return;
       audioChunks = [];
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(s => {
-          mediaRecorder = new MediaRecorder(s);
+          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : MediaRecorder.isTypeSupported('audio/webm')
+              ? 'audio/webm'
+              : '';
+          mediaRecorder = mimeType
+            ? new MediaRecorder(s, { mimeType })
+            : new MediaRecorder(s);
           mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
           };
           mediaRecorder.onstop = () => {
             s.getTracks().forEach(t => t.stop());
+            const elapsed = Date.now() - recordingStartTime;
+            if (elapsed < 800) {
+              loadingOverlay.style.display = 'none';
+              speak('Grabacion muy corta. Manten presionado al menos un segundo.');
+              return;
+            }
             if (audioChunks.length > 0) {
-              const blob = new Blob(audioChunks, { type: 'audio/webm' });
+              const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
               sendAudio(blob);
             }
           };
+          recordingStartTime = Date.now();
           mediaRecorder.start();
           isRecording = true;
           micBtn.classList.add('recording');
@@ -787,8 +803,10 @@
       loadingText.textContent = 'Escuchando...';
 
       const formData = new FormData();
-      const ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+      const ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : blob.type.includes('mp4') ? 'mp4' : 'webm';
       formData.append('file', blob, `recording.${ext}`);
+
+      console.log('STT sendAudio:', { type: blob.type, size: blob.size, ext });
 
       try {
         const res = await fetch(`${API}/transcribe`, {
@@ -800,6 +818,7 @@
           throw new Error(errData.detail || 'STT failed');
         }
         const data = await res.json();
+        console.log('STT result:', data);
         if (!data.text || !data.text.trim()) {
           loadingOverlay.style.display = 'none';
           speak('No escuche nada. Intenta de nuevo hablando mas claro.');

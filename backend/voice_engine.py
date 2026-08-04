@@ -1,9 +1,12 @@
 """ElevenLabs STT + TTS engine."""
 from __future__ import annotations
 
+import logging
 import os
 
 import httpx
+
+log = logging.getLogger(__name__)
 
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL")
@@ -32,19 +35,32 @@ async def transcribir(audio_bytes: bytes, filename: str = "audio.webm") -> str:
     elif filename.endswith(".wav"):
         content_type = "audio/wav"
 
+    log.info(
+        "STT request: model=%s, lang=es, file=%s, content_type=%s, size=%d bytes",
+        ELEVENLABS_STT_MODEL, filename, content_type, len(audio_bytes),
+    )
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             _STT_URL,
             headers={"xi-api-key": ELEVENLABS_API_KEY},
             data={
                 "model_id": ELEVENLABS_STT_MODEL,
-                "language_code": "spa",
+                "language_code": "es",
             },
             files={"file": (filename, audio_bytes, content_type)},
             timeout=_TIMEOUT,
         )
-    resp.raise_for_status()
-    return (resp.json().get("text") or "").strip()
+
+    if resp.status_code != 200:
+        log.error("STT error %d: %s", resp.status_code, resp.text[:500])
+        resp.raise_for_status()
+
+    result = resp.json()
+    text = (result.get("text") or "").strip()
+    lang_detected = result.get("language_code", "?")
+    log.info("STT result: lang=%s, text=%r", lang_detected, text)
+    return text
 
 
 async def sintetizar(texto: str) -> bytes:

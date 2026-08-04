@@ -84,11 +84,16 @@ async def speak(req: SpeakRequest):
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
     """Speech-to-text using ElevenLabs."""
+    import logging
+    log = logging.getLogger(__name__)
     try:
         audio = await file.read()
+        log.info("Transcribe received: filename=%s, size=%d bytes", file.filename, len(audio))
         texto = await transcribir(audio, file.filename or "audio.webm")
+        log.info("Transcribe result: %r", texto)
         return {"text": texto}
     except Exception as e:
+        log.error("Transcribe error: %s", e)
         raise HTTPException(status_code=502, detail=f"STT error: {e}")
 
 
