@@ -674,10 +674,22 @@
     }
 
     // --- TTS ---
+    let speakTimeout = null;
+
     function speak(text) {
-      if (isSpeaking) return;
+      // If already speaking, queue this speech by stopping current first
+      if (isSpeaking) {
+        stopSpeaking();
+      }
       isSpeaking = true;
       speakingWaves.style.display = 'flex';
+
+      // Safety timeout: force release after 15 seconds
+      clearTimeout(speakTimeout);
+      speakTimeout = setTimeout(() => {
+        isSpeaking = false;
+        speakingWaves.style.display = 'none';
+      }, 15000);
 
       fetch(`${API}/speak`, {
         method: 'POST',
@@ -694,6 +706,7 @@
           audioPlayer.onended = () => {
             isSpeaking = false;
             speakingWaves.style.display = 'none';
+            clearTimeout(speakTimeout);
             URL.revokeObjectURL(url);
           };
           audioPlayer.play();
@@ -706,13 +719,24 @@
             u.onend = () => {
               isSpeaking = false;
               speakingWaves.style.display = 'none';
+              clearTimeout(speakTimeout);
             };
             window.speechSynthesis.speak(u);
           } else {
             isSpeaking = false;
             speakingWaves.style.display = 'none';
+            clearTimeout(speakTimeout);
           }
         });
+    }
+
+    function stopSpeaking() {
+      audioPlayer.pause();
+      audioPlayer.src = '';
+      window.speechSynthesis.cancel();
+      isSpeaking = false;
+      speakingWaves.style.display = 'none';
+      clearTimeout(speakTimeout);
     }
 
     // --- STT ---
@@ -761,20 +785,29 @@
     async function sendAudio(blob) {
       loadingOverlay.style.display = 'flex';
       loadingText.textContent = 'Escuchando...';
-      speak('Procesando tu voz.');
 
       const formData = new FormData();
-      formData.append('file', blob, 'recording.webm');
+      const ext = blob.type.includes('webm') ? 'webm' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+      formData.append('file', blob, `recording.${ext}`);
 
       try {
         const res = await fetch(`${API}/transcribe`, {
           method: 'POST',
           body: formData,
         });
-        if (!res.ok) throw new Error('STT failed');
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || 'STT failed');
+        }
         const data = await res.json();
+        if (!data.text || !data.text.trim()) {
+          loadingOverlay.style.display = 'none';
+          speak('No escuche nada. Intenta de nuevo hablando mas claro.');
+          return;
+        }
         processVoiceCommand(data.text);
       } catch (err) {
+        console.error('STT error:', err);
         loadingOverlay.style.display = 'none';
         speak('No pude entender el audio. Intenta de nuevo.');
       }
@@ -782,7 +815,10 @@
 
     function processVoiceCommand(text) {
       loadingOverlay.style.display = 'none';
-      const lower = text.toLowerCase();
+      const lower = text.toLowerCase().trim();
+      
+      // Force stop any current speech before responding
+      stopSpeaking();
       
       // Si estamos en el menú de resultado → agregar items al checklist
       if (resultOverlay.style.display === 'block') {

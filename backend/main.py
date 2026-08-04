@@ -72,10 +72,10 @@ def analyze(req: AnalyzeRequest):
 
 
 @app.post("/speak")
-def speak(req: SpeakRequest):
+async def speak(req: SpeakRequest):
     """Text-to-speech using ElevenLabs."""
     try:
-        audio = sintetizar(req.text)
+        audio = await sintetizar(req.text)
         return Response(content=audio, media_type="audio/mpeg")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"TTS error: {e}")
@@ -86,7 +86,7 @@ async def transcribe(file: UploadFile = File(...)):
     """Speech-to-text using ElevenLabs."""
     try:
         audio = await file.read()
-        texto = transcribir(audio, file.filename or "audio.webm")
+        texto = await transcribir(audio, file.filename or "audio.webm")
         return {"text": texto}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"STT error: {e}")
