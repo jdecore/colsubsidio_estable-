@@ -35,8 +35,8 @@ colsubsidio_estable/
 | Backend | Python 3.12 + FastAPI |
 | Análisis IA | Google Gemini 2.5 Flash (gratis) |
 | Fallback IA | OpenRouter - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free |
-| Speech-to-Text | ElevenLabs Scribe v1 |
-| Text-to-Speech | ElevenLabs eleven_multilingual_v2 |
+| Speech-to-Text | ElevenLabs Scribe v2 |
+| Text-to-Speech | ElevenLabs eleven_flash_v2_5 |
 | Hosting Backend | Render (Web Service) |
 | Hosting Frontend | https://colsus.monokuko.com (Caddy/traefik) |
 
@@ -46,7 +46,7 @@ colsubsidio_estable/
 |---|---|---|
 | Gemini | `TU_GEMINI_API_KEY` | gemini-2.5-flash |
 | OpenRouter | `TU_OPENROUTER_API_KEY` | nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free |
-| ElevenLabs | `TU_ELEVENLABS_API_KEY` | scribe_v1 + eleven_multilingual_v2 |
+| ElevenLabs | `TU_ELEVENLABS_API_KEY` | scribe_v2 + eleven_flash_v2_5 |
 
 ## Variables de Entorno (para Render)
 
@@ -57,8 +57,8 @@ OPENROUTER_API_KEY=tu_api_key_aqui
 OPENROUTER_MODEL=nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
 ELEVENLABS_API_KEY=tu_api_key_aqui
 ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
-ELEVENLABS_STT_MODEL=scribe_v1
-ELEVENLABS_TTS_MODEL=eleven_multilingual_v2
+ELEVENLABS_STT_MODEL=scribe_v2
+ELEVENLABS_TTS_MODEL=eleven_flash_v2_5
 API_HOST=0.0.0.0
 API_PORT=8000
 FRONTEND_URL=https://colsus.monokuko.com
@@ -180,8 +180,8 @@ CMD ["python", "main.py"]
 - Retorna dict con description, objects, confidence, suggestion, _provider
 
 ### `backend/voice_engine.py`
-- `transcribir(audio_bytes)` → ElevenLabs STT (scribe_v1, idioma spa)
-- `sintetizar(texto)` → ElevenLabs TTS (eleven_multilingual_v2)
+- `transcribir(audio_bytes)` → ElevenLabs STT (scribe_v2, idioma spa)
+- `sintetizar(texto)` → ElevenLabs TTS (eleven_flash_v2_5)
 - `health()` → bool indica si la API key está configurada
 
 ### `frontend/index.html`
@@ -208,8 +208,8 @@ CMD ["python", "main.py"]
 
 ### ElevenLabs
 - Free tier disponible
-- STT: scribe_v1
-- TTS: eleven_multilingual_v2
+- STT: scribe_v2
+- TTS: eleven_flash_v2_5
 - Voice ID default: EXAVITQu4vr4xnSDxMaL
 
 ## Notas importantes
