@@ -27,6 +27,10 @@ async def transcribir(audio_bytes: bytes, filename: str = "audio.webm") -> str:
     if not _has_key():
         raise RuntimeError("ELEVENLABS_API_KEY no configurada")
 
+    if len(audio_bytes) < 5000:
+        log.warning("STT rechazado: audio muy pequeño (%d bytes)", len(audio_bytes))
+        raise ValueError("Audio demasiado corto, por favor mantén presionado el botón al hablar.")
+
     content_type = "audio/webm"
     if filename.endswith(".ogg"):
         content_type = "audio/ogg"
@@ -52,9 +56,8 @@ async def transcribir(audio_bytes: bytes, filename: str = "audio.webm") -> str:
             timeout=_TIMEOUT,
         )
 
-    if resp.status_code != 200:
-        log.error("STT error %d: %s", resp.status_code, resp.text[:500])
-        resp.raise_for_status()
+    if resp.status_code >= 400:
+        raise RuntimeError(f"ElevenLabs STT {resp.status_code}: {resp.text[:500]}")
 
     result = resp.json()
     text = (result.get("text") or "").strip()

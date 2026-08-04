@@ -172,7 +172,8 @@ CMD ["python", "main.py"]
 - FastAPI app con CORS
 - sirve el frontend HTML en `/`
 - 4 endpoints: health, analyze, speak, transcribe
-- Variables: FRONTEND_URL para CORS
+- `/speak` y `/transcribe` son async (no bloquean event loop)
+- Logging en `/transcribe` para debug
 
 ### `backend/ai_engine.py`
 - `analyze_image(base64)` → intenta Gemini primero, fallback OpenRouter
@@ -180,8 +181,11 @@ CMD ["python", "main.py"]
 - Retorna dict con description, objects, confidence, suggestion, _provider
 
 ### `backend/voice_engine.py`
-- `transcribir(audio_bytes)` → ElevenLabs STT (scribe_v2, idioma spa)
-- `sintetizar(texto)` → ElevenLabs TTS (eleven_flash_v2_5)
+- `transcribir(audio_bytes)` → async, ElevenLabs STT (scribe_v2, idioma `es` ISO 639-1)
+- Valida tamaño mínimo del audio (< 5KB → rechaza sin llamar API)
+- Detecta content-type según extensión del archivo (webm/ogg/mp4/wav)
+- Logging: modelo, tamaño, idioma detectado, resultado
+- `sintetizar(texto)` → async, ElevenLabs TTS (eleven_flash_v2_5)
 - `health()` → bool indica si la API key está configurada
 
 ### `frontend/index.html`
@@ -189,8 +193,10 @@ CMD ["python", "main.py"]
 - Tailwind CDN (sin build)
 - JavaScript vanilla (sin framework)
 - Cámara con `navigator.mediaDevices.getUserMedia`
-- TTS: fetch a `/speak`, fallback a Web Speech API
-- STT: MediaRecorder → blob → fetch a `/transcribe`
+- TTS: `speak()` con `stopSpeaking()` para forzar cambio de audio, timeout safety 15s, fallback Web Speech API
+- STT: `MediaRecorder` con MIME type correcto del navegador, grabación mínima 800ms
+- `sendAudio()` → detecta extensión real del blob, logs en consola
+- `processVoiceCommand()` → llama `stopSpeaking()` antes de responder para evitar bloqueo de `isSpeaking`
 
 ## APIs gratuitas usadas
 
@@ -220,6 +226,10 @@ CMD ["python", "main.py"]
 - **Fallback de TTS** - si ElevenLabs falla, usa Web Speech API del navegador
 - **El backend sirve el frontend** - no necesita hosting separado
 - **Safe area insets** - respeta el notch y barra del sistema en móviles
+- **STT idioma** - usar ISO 639-1 (`es`), NO ISO 639-3 (`spa`) para Scribe v2
+- **Anti-basura** - Frontend: grabación mínima 800ms. Backend: rechaza audios < 5KB
+- **isSpeaking** - `speak()` detiene audio actual antes de hablar nuevo texto (timeout 15s)
+- **Backend async** - `transcribir()` y `sintetizar()` usan `httpx.AsyncClient` (no bloquean event loop)
 
 ## Dependencias
 

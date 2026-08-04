@@ -4,14 +4,19 @@
 El usuario confirma: **TTS funciona, pero STT no**. El TTS usa ElevenLabs y va bien, así que
 la API key y la red están correctas. El fallo está aislado en el speech-to-text.
 
-Causas más probables (sin poder ejecutar el backend desde aquí):
-1. **Scribe de ElevenLabs no incluido en el plan** (es un feature de pago). El backend
-   hace `resp.raise_for_status()` y devuelve 502 → el frontend muestra
-   "No pude entender el audio".
+### Evidencia verificada (2026-08-03)
+- `GET https://colsubsidio-estable.onrender.com/health` → `{"ok":true,"gemini":true,"openrouter":true,"elevenlabs":true}`.
+  El backend está arriba y la key de ElevenLabs está presente (`elevenlabs: true`).
+- `backend/requirements.txt` incluye `python-multipart==0.0.9` → no es falta de dependencia para `UploadFile`.
+- TTS (`/speak` → `sintetizar`) funciona con la misma key → la key es válida y tiene TTS habilitado.
+
+Con esto se **descartan** key ausente, dependencia faltante y backend caído. Quedan dos
+hipótesis para el fallo de STT:
+1. **Scribe de ElevenLabs no incluido en el plan** (feature de pago). El backend hace
+   `resp.raise_for_status()` y devuelve 502 → el frontend muestra "No pude entender el audio".
+   Si es 402/403, el error real se pierde en `main.py:91`.
 2. El audio `audio/webm;codecs=opus` que produce `MediaRecorder` no es decodificado por
    ElevenLabs y devuelve texto vacío → el frontend muestra "No escuché nada".
-3. El error real se pierde: `main.py:91` solo devuelve `detail=f"STT error: {e}"` sin el
-   `status_code` de ElevenLabs, imposibilitando diagnosticar.
 
 El frontend **no tiene fallback de STT** (a diferencia de TTS, que sí cae a Web Speech API
 en `index.html:714`). Por eso "no funciona" en seco.

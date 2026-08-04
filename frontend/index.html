@@ -744,16 +744,17 @@
 
     function startRecording() {
       if (isRecording) return;
+      stopSpeaking();
       audioChunks = [];
       navigator.mediaDevices.getUserMedia({ audio: true })
         .then(s => {
-          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
             ? 'audio/webm;codecs=opus'
-            : MediaRecorder.isTypeSupported('audio/webm')
-              ? 'audio/webm'
+            : MediaRecorder.isTypeSupported('audio/mp4')
+              ? 'audio/mp4'
               : '';
-          mediaRecorder = mimeType
-            ? new MediaRecorder(s, { mimeType })
+          mediaRecorder = mime
+            ? new MediaRecorder(s, { mimeType: mime })
             : new MediaRecorder(s);
           mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
@@ -761,7 +762,7 @@
           mediaRecorder.onstop = () => {
             s.getTracks().forEach(t => t.stop());
             const elapsed = Date.now() - recordingStartTime;
-            if (elapsed < 800) {
+            if (elapsed < 300) {
               loadingOverlay.style.display = 'none';
               speak('Grabacion muy corta. Manten presionado al menos un segundo.');
               return;
@@ -815,21 +816,50 @@
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || 'STT failed');
+          loadingOverlay.style.display = 'none';
+          return transcribeWithBrowser(errData.detail || 'STT failed');
         }
         const data = await res.json();
         console.log('STT result:', data);
         if (!data.text || !data.text.trim()) {
           loadingOverlay.style.display = 'none';
-          speak('No escuche nada. Intenta de nuevo hablando mas claro.');
-          return;
+          return transcribeWithBrowser();
         }
         processVoiceCommand(data.text);
       } catch (err) {
         console.error('STT error:', err);
         loadingOverlay.style.display = 'none';
-        speak('No pude entender el audio. Intenta de nuevo.');
+        transcribeWithBrowser(err.message || 'STT error');
       }
+    }
+
+    function transcribeWithBrowser(reason) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        speak('No pude entender el audio. Intenta de nuevo.');
+        return;
+      }
+      let processed = false;
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'es-CO';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (event) => {
+        processed = true;
+        const transcript = event.results[0][0].transcript;
+        processVoiceCommand(transcript);
+      };
+      recognition.onerror = () => {
+        if (!processed) {
+          speak('No pude entender el audio. Intenta de nuevo.');
+        }
+      };
+      recognition.onend = () => {
+        if (!processed) {
+          speak('No pude entender el audio. Intenta de nuevo.');
+        }
+      };
+      recognition.start();
     }
 
     function processVoiceCommand(text) {
